@@ -1,0 +1,95 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://scripts/principal.gd" id="1_principal"]
+[ext_resource type="Script" path="res://scripts/terra.gd" id="2_terra"]
+[ext_resource type="Script" path="res://scripts/interface.gd" id="3_interface"]
+[ext_resource type="Texture2D" path="res://assets/terra.jpg" id="4_terra"]
+[ext_resource type="Texture2D" path="res://assets/nuvens.png" id="5_nuvens"]
+[ext_resource type="Shader" path="res://shaders/atmosfera.gdshader" id="6_atmosfera"]
+[ext_resource type="Texture2D" path="res://assets/estrelas.jpg" id="7_estrelas"]
+
+[sub_resource type="SphereMesh" id="EsferaTerra"]
+radius = 1.6
+height = 3.2
+radial_segments = 96
+rings = 48
+
+[sub_resource type="StandardMaterial3D" id="MaterialTerra"]
+albedo_texture = ExtResource("4_terra")
+metallic = 0.0
+roughness = 0.90
+
+[sub_resource type="SphereMesh" id="EsferaNuvens"]
+radius = 1.625
+height = 3.25
+radial_segments = 96
+rings = 48
+
+[sub_resource type="StandardMaterial3D" id="MaterialNuvens"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 1, 1, 0.70)
+albedo_texture = ExtResource("5_nuvens")
+roughness = 1.0
+
+[sub_resource type="ShaderMaterial" id="MaterialAtmosfera"]
+shader = ExtResource("6_atmosfera")
+
+[sub_resource type="SphereMesh" id="EsferaAtmosfera"]
+radius = 1.69
+height = 3.38
+radial_segments = 72
+rings = 36
+
+[sub_resource type="PanoramaSkyMaterial" id="MaterialEstrelas"]
+panorama = ExtResource("7_estrelas")
+
+[sub_resource type="Sky" id="CeuEstrelado"]
+sky_material = SubResource("MaterialEstrelas")
+
+[sub_resource type="Environment" id="AmbienteEspaco"]
+background_mode = 2
+sky = SubResource("CeuEstrelado")
+ambient_light_source = 2
+ambient_light_color = Color(0.29, 0.37, 0.55, 1)
+ambient_light_energy = 0.32
+reflected_light_source = 1
+tonemap_mode = 1
+
+[node name="Principal" type="Node3D"]
+script = ExtResource("1_principal")
+
+[node name="Terra" type="Node3D" parent="."]
+position = Vector3(0, 0.88, 0)
+script = ExtResource("2_terra")
+
+[node name="Superficie" type="MeshInstance3D" parent="Terra"]
+mesh = SubResource("EsferaTerra")
+surface_material_override/0 = SubResource("MaterialTerra")
+
+[node name="Nuvens" type="MeshInstance3D" parent="Terra"]
+mesh = SubResource("EsferaNuvens")
+surface_material_override/0 = SubResource("MaterialNuvens")
+
+[node name="Atmosfera" type="MeshInstance3D" parent="Terra"]
+mesh = SubResource("EsferaAtmosfera")
+surface_material_override/0 = SubResource("MaterialAtmosfera")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 0, 6.8)
+current = true
+fov = 52.0
+near = 0.05
+far = 150.0
+
+[node name="Sol" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-26, -35, 0)
+light_color = Color(0.98, 0.96, 0.92, 1)
+light_energy = 2.1
+shadow_enabled = false
+
+[node name="Ambiente" type="WorldEnvironment" parent="."]
+environment = SubResource("AmbienteEspaco")
+
+[node name="Interface" type="CanvasLayer" parent="."]
+script = ExtResource("3_interface")
