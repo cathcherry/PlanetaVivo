@@ -1,37 +1,46 @@
 extends Node3D
 ## Globo 3D, nuvens e marcadores.
-## Rotacao direta: a superficie acompanha o arrasto, sem inercia artificial.
+## Controle tipo globo: norte sempre para cima, com inclinacao vertical limitada.
 
 @onready var nuvens: MeshInstance3D = $Nuvens
 @onready var camera: Camera3D = $"../Camera3D"
 
+const LIMITE_INCLINACAO: float = 1.43117 # Aproximadamente 82 graus.
+
 var rotacao_automatica: bool = true
+var longitude: float = 0.0
+var inclinacao: float = 0.0
 
 func _process(delta: float) -> void:
+    # Rotacao lenta padrao, sem modificar a inclinacao do eixo.
     if rotacao_automatica:
-        rotate_y(delta * 0.014)
+        longitude = wrapf(longitude + delta * 0.014, -PI, PI)
+        _aplicar_orientacao()
     nuvens.rotate_y(delta * 0.0035)
 
 func girar(deslocamento: Vector2) -> void:
-    # O objeto acompanha a mao enquanto houver movimento do mouse/dedo.
     if deslocamento.length_squared() < 0.001:
         return
-
     rotacao_automatica = false
     var movimento: Vector2 = deslocamento.limit_length(90.0)
     var sensibilidade: float = _sensibilidade_do_globo()
+    longitude = wrapf(longitude + movimento.x * sensibilidade, -PI, PI)
+    inclinacao = clampf(
+        inclinacao + movimento.y * sensibilidade,
+        -LIMITE_INCLINACAO,
+        LIMITE_INCLINACAO
+    )
+    _aplicar_orientacao()
 
-    # Eixos fixos da tela/camera, em vez de somar angulos Euler no objeto.
-    # Direita leva a superficie para a direita; baixo leva-a para baixo.
-    var eixo_para_cima: Vector3 = camera.global_transform.basis.y.normalized()
-    var eixo_para_direita: Vector3 = camera.global_transform.basis.x.normalized()
-    var giro_horizontal: Quaternion = Quaternion(eixo_para_cima, movimento.x * sensibilidade)
-    var giro_vertical: Quaternion = Quaternion(eixo_para_direita, movimento.y * sensibilidade)
-    quaternion = (giro_horizontal * giro_vertical * quaternion).normalized()
+func _aplicar_orientacao() -> void:
+    # Primeiro giro horizontal, depois inclinacao vertical: sem rolamento lateral.
+    # A direcao do polo norte mantem componente vertical positiva na tela.
+    var giro_horizontal: Quaternion = Quaternion(Vector3.UP, longitude)
+    var giro_vertical: Quaternion = Quaternion(Vector3.RIGHT, inclinacao)
+    quaternion = (giro_horizontal * giro_vertical).normalized()
 
 func _sensibilidade_do_globo() -> float:
-    # Ajusta a velocidade do giro ao tamanho aparente da Terra.
-    # Assim, o arrasto tambem fica consistente apos usar o zoom.
+    # Compensa o tamanho aparente do globo apos aproximar/afastar a camera.
     var centro: Vector2 = camera.unproject_position(global_position)
     var borda: Vector2 = camera.unproject_position(
         global_position + camera.global_transform.basis.x.normalized() * 1.6
@@ -40,13 +49,19 @@ func _sensibilidade_do_globo() -> float:
     return clampf(1.0 / raio_em_pixels, 0.0015, 0.008)
 
 func parar_inercia() -> void:
-    # Mantido por compatibilidade com principal.gd.
-    # Nesta versao o movimento termina imediatamente ao soltar.
+    # Compatibilidade com principal.gd. Nao ha inercia neste modo.
     pass
 
+func endireitar_globo() -> void:
+    # Preserva a longitude observada, as intervencoes e o ano.
+    inclinacao = 0.0
+    _aplicar_orientacao()
+
 func reiniciar_globo() -> void:
-    quaternion = Quaternion.IDENTITY
+    longitude = 0.0
+    inclinacao = 0.0
     rotacao_automatica = true
+    _aplicar_orientacao()
     for filho in get_children():
         if filho.name.begins_with("Marca_"):
             filho.queue_free()
