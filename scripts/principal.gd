@@ -23,6 +23,7 @@ func _ready() -> void:
     interface.connect("acao_selecionada", _trocar_acao)
     interface.connect("ano_avancado", _avancar_ano)
     interface.connect("jogo_reiniciado", _reiniciar)
+    interface.connect("orientacao_restaurada", _endireitar_globo)
     interface.call("mudar_estado", simulacao.estado())
     interface.call("mostrar_mensagem", "Selecione uma acao e toque na Terra.")
 
@@ -130,6 +131,10 @@ func _trocar_acao(nova_acao: String) -> void:
 func _avancar_ano() -> void:
     interface.call("mostrar_mensagem", simulacao.passar_ano())
     interface.call("mudar_estado", simulacao.estado())
+
+func _endireitar_globo() -> void:
+    terra.call("endireitar_globo")
+    interface.call("mostrar_mensagem", "Globo endireitado: norte para cima.")
 
 func _reiniciar() -> void:
     simulacao.reiniciar()
