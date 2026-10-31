@@ -10,6 +10,7 @@ const LIMITE_INCLINACAO: float = 1.43117 # Aproximadamente 82 graus.
 var rotacao_automatica: bool = true
 var longitude: float = 0.0
 var inclinacao: float = 0.0
+var animacao_orientacao: Tween
 
 func _process(delta: float) -> void:
     # Rotacao lenta padrao, sem modificar a inclinacao do eixo.
@@ -21,6 +22,7 @@ func _process(delta: float) -> void:
 func girar(deslocamento: Vector2) -> void:
     if deslocamento.length_squared() < 0.001:
         return
+    parar_inercia()
     rotacao_automatica = false
     var movimento: Vector2 = deslocamento.limit_length(90.0)
     var sensibilidade: float = _sensibilidade_do_globo()
@@ -33,11 +35,13 @@ func girar(deslocamento: Vector2) -> void:
     _aplicar_orientacao()
 
 func _aplicar_orientacao() -> void:
-    # Primeiro giro horizontal, depois inclinacao vertical: sem rolamento lateral.
-    # A direcao do polo norte mantem componente vertical positiva na tela.
+    # A inclinacao usa o eixo horizontal fixo da tela.
+    # A longitude gira dentro desse referencial, como em um globo fisico:
+    # isso impede que arrastos diagonais criem um movimento estranho nos polos.
+    # A ordem das multiplicacoes importa: primeiro a longitude, depois a inclinacao.
     var giro_horizontal: Quaternion = Quaternion(Vector3.UP, longitude)
     var giro_vertical: Quaternion = Quaternion(Vector3.RIGHT, inclinacao)
-    quaternion = (giro_horizontal * giro_vertical).normalized()
+    quaternion = (giro_vertical * giro_horizontal).normalized()
 
 func _sensibilidade_do_globo() -> float:
     # Compensa o tamanho aparente do globo apos aproximar/afastar a camera.
@@ -49,15 +53,30 @@ func _sensibilidade_do_globo() -> float:
     return clampf(1.0 / raio_em_pixels, 0.0015, 0.008)
 
 func parar_inercia() -> void:
-    # Compatibilidade com principal.gd. Nao ha inercia neste modo.
-    pass
+    # Compatibilidade com principal.gd: cancela a animacao ao comecar a arrastar.
+    if animacao_orientacao != null and animacao_orientacao.is_valid():
+        animacao_orientacao.kill()
+        animacao_orientacao = null
 
 func endireitar_globo() -> void:
-    # Preserva a longitude observada, as intervencoes e o ano.
-    inclinacao = 0.0
+    # Corrige apenas a inclinacao. Nao apaga intervencoes nem muda a longitude.
+    parar_inercia()
+    if absf(inclinacao) < 0.005:
+        inclinacao = 0.0
+        _aplicar_orientacao()
+        return
+    rotacao_automatica = false
+    animacao_orientacao = create_tween()
+    animacao_orientacao.set_trans(Tween.TRANS_CUBIC)
+    animacao_orientacao.set_ease(Tween.EASE_IN_OUT)
+    animacao_orientacao.tween_method(_definir_inclinacao, inclinacao, 0.0, 0.52)
+
+func _definir_inclinacao(valor: float) -> void:
+    inclinacao = valor
     _aplicar_orientacao()
 
 func reiniciar_globo() -> void:
+    parar_inercia()
     longitude = 0.0
     inclinacao = 0.0
     rotacao_automatica = true
