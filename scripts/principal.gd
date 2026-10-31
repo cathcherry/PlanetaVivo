@@ -39,11 +39,12 @@ func _unhandled_input(evento: InputEvent) -> void:
             if evento.pressed:
                 arrastando = true
                 mouse_moveu = false
-                terra.call("parar_inercia")
+                terra.call("iniciar_arrasto")
                 inicio_toque = evento.position
                 posicao_toque = evento.position
             elif arrastando:
                 arrastando = false
+                terra.call("finalizar_arrasto")
                 if not mouse_moveu and inicio_toque.distance_to(evento.position) < 15.0:
                     _intervir(evento.position)
     elif evento is InputEventMouseMotion and arrastando:
@@ -58,10 +59,11 @@ func _unhandled_input(evento: InputEvent) -> void:
             if toques.size() == 1:
                 teve_pinca = false
                 dedo_moveu = false
-                terra.call("parar_inercia")
+                terra.call("iniciar_arrasto")
                 inicio_toque = evento.position
                 posicao_toque = evento.position
             if toques.size() == 2:
+                terra.call("finalizar_arrasto")
                 teve_pinca = true
                 distancia_pinca = _distancia_dedos()
         else:
@@ -69,6 +71,7 @@ func _unhandled_input(evento: InputEvent) -> void:
                 _intervir(evento.position)
             toques.erase(evento.index)
             if toques.is_empty():
+                terra.call("finalizar_arrasto")
                 distancia_pinca = 0.0
                 teve_pinca = false
                 dedo_moveu = false
