@@ -6,7 +6,7 @@ extends Node3D
 @onready var camera: Camera3D = $"../Camera3D"
 
 const LIMITE_INCLINACAO: float = 1.43117 # Aproximadamente 82 graus.
-const PESO_DO_ARRASTO: float = 0.6 # Rotacao 20% mais sensivel que a anterior, sem travas por gesto.
+const PESO_DO_ARRASTO: float = 0.69 # 15% mais sensivel que a versao anterior (0.60).
 
 var rotacao_automatica: bool = true
 var longitude: float = 0.0
