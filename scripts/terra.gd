@@ -6,11 +6,13 @@ extends Node3D
 @onready var camera: Camera3D = $"../Camera3D"
 
 const LIMITE_INCLINACAO: float = 1.43117 # Aproximadamente 82 graus.
+const LIMITE_GIRO_POR_ARRASTO: float = 1.3962634 # Aproximadamente 80 graus.
 
 var rotacao_automatica: bool = true
 var longitude: float = 0.0
 var inclinacao: float = 0.0
 var animacao_orientacao: Tween
+var giro_no_arrasto: Vector2 = Vector2.ZERO
 
 func _process(delta: float) -> void:
     # Rotacao lenta padrao, sem modificar a inclinacao do eixo.
@@ -19,16 +21,32 @@ func _process(delta: float) -> void:
         _aplicar_orientacao()
     nuvens.rotate_y(delta * 0.0035)
 
+func iniciar_arrasto() -> void:
+    # Cada novo gesto ganha um limite de giro proprio.
+    parar_inercia()
+    giro_no_arrasto = Vector2.ZERO
+
+func finalizar_arrasto() -> void:
+    # O proximo gesto recomeca com o limite completo.
+    giro_no_arrasto = Vector2.ZERO
+
 func girar(deslocamento: Vector2) -> void:
     if deslocamento.length_squared() < 0.001:
         return
-    parar_inercia()
     rotacao_automatica = false
     var movimento: Vector2 = deslocamento.limit_length(90.0)
     var sensibilidade: float = _sensibilidade_do_globo()
-    longitude = wrapf(longitude + movimento.x * sensibilidade, -PI, PI)
+
+    # O total de um unico arrasto fica limitado a aproximadamente 80 graus.
+    # Nao bloqueia a exploracao: solte e arraste novamente para continuar.
+    # Como o giro acumulado e limitado, inverter o arrasto responde de imediato.
+    var proximo_giro: Vector2 = (giro_no_arrasto + movimento * sensibilidade).limit_length(LIMITE_GIRO_POR_ARRASTO)
+    var giro_permitido: Vector2 = proximo_giro - giro_no_arrasto
+    giro_no_arrasto = proximo_giro
+
+    longitude = wrapf(longitude + giro_permitido.x, -PI, PI)
     inclinacao = clampf(
-        inclinacao + movimento.y * sensibilidade,
+        inclinacao + giro_permitido.y,
         -LIMITE_INCLINACAO,
         LIMITE_INCLINACAO
     )
@@ -60,6 +78,7 @@ func parar_inercia() -> void:
 
 func endireitar_globo() -> void:
     # Corrige apenas a inclinacao. Nao apaga intervencoes nem muda a longitude.
+    finalizar_arrasto()
     parar_inercia()
     if absf(inclinacao) < 0.005:
         inclinacao = 0.0
@@ -76,6 +95,7 @@ func _definir_inclinacao(valor: float) -> void:
     _aplicar_orientacao()
 
 func reiniciar_globo() -> void:
+    finalizar_arrasto()
     parar_inercia()
     longitude = 0.0
     inclinacao = 0.0
