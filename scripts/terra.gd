@@ -4,18 +4,37 @@ extends Node3D
 @onready var nuvens: MeshInstance3D = $Nuvens
 var rotacao_automatica: bool = true
 var tempo: float = 0.0
+var velocidade_inercia: Vector2 = Vector2.ZERO
 
 func _process(delta: float) -> void:
     tempo += delta
     if rotacao_automatica:
         rotate_y(delta * 0.014)
+    elif velocidade_inercia.length() > 0.015:
+        _aplicar_rotacao(velocidade_inercia * delta)
+        velocidade_inercia *= exp(-6.0 * delta)
     nuvens.rotate_y(delta * 0.0035)
 
 func girar(deslocamento: Vector2) -> void:
     rotacao_automatica = false
-    rotate_y(-deslocamento.x * 0.005)
-    rotate_object_local(Vector3.RIGHT, -deslocamento.y * 0.003)
-    rotation.x = clampf(rotation.x, -0.85, 0.85)
+    var rotacao: Vector2 = deslocamento * 0.0045
+    _aplicar_rotacao(rotacao)
+    velocidade_inercia = (rotacao * 45.0).limit_length(3.0)
+
+func parar_inercia() -> void:
+    velocidade_inercia = Vector2.ZERO
+
+func _aplicar_rotacao(quantidade: Vector2) -> void:
+    rotation.y += quantidade.x
+    rotation.x = clampf(rotation.x + quantidade.y, -1.2, 1.2)
+
+func reiniciar_globo() -> void:
+    rotation = Vector3.ZERO
+    rotacao_automatica = true
+    velocidade_inercia = Vector2.ZERO
+    for filho in get_children():
+        if filho.name.begins_with("Marca_"):
+            filho.queue_free()
 
 func marcar_ponto(posicao_local: Vector3, acao: String) -> void:
     var ponto := MeshInstance3D.new()
