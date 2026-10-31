@@ -23,6 +23,7 @@ func _ready() -> void:
     interface.connect("acao_selecionada", _trocar_acao)
     interface.connect("ano_avancado", _avancar_ano)
     interface.connect("jogo_reiniciado", _reiniciar)
+    interface.connect("orientacao_restaurada", _endireitar_globo)
     interface.call("mudar_estado", simulacao.estado())
     interface.call("mostrar_mensagem", "Selecione uma acao e toque na Terra.")
 
@@ -36,13 +37,18 @@ func _unhandled_input(evento: InputEvent) -> void:
             return
         if evento.button_index == MOUSE_BUTTON_LEFT:
             if evento.pressed:
+                # O arrasto comeca na Terra ou bem perto da sua borda.
+                # O fundo preto distante continua sem controlar o globo.
+                if not _esta_na_area_de_arrasto(evento.position):
+                    return
                 arrastando = true
                 mouse_moveu = false
-                terra.call("parar_inercia")
+                terra.call("iniciar_arrasto")
                 inicio_toque = evento.position
                 posicao_toque = evento.position
             elif arrastando:
                 arrastando = false
+                terra.call("finalizar_arrasto")
                 if not mouse_moveu and inicio_toque.distance_to(evento.position) < 15.0:
                     _intervir(evento.position)
     elif evento is InputEventMouseMotion and arrastando:
@@ -53,25 +59,37 @@ func _unhandled_input(evento: InputEvent) -> void:
         posicao_toque = evento.position
     elif evento is InputEventScreenTouch:
         if evento.pressed:
+            # O primeiro dedo precisa tocar a Terra ou sua borda ampliada.
+            # O segundo pode estar fora para permitir o gesto de pinca.
+            if toques.is_empty() and not _esta_na_area_de_arrasto(evento.position):
+                return
             toques[evento.index] = evento.position
             if toques.size() == 1:
                 teve_pinca = false
                 dedo_moveu = false
-                terra.call("parar_inercia")
+                terra.call("iniciar_arrasto")
                 inicio_toque = evento.position
                 posicao_toque = evento.position
             if toques.size() == 2:
+                terra.call("finalizar_arrasto")
                 teve_pinca = true
                 distancia_pinca = _distancia_dedos()
         else:
+            # Ignora dedos cujo gesto comecou no fundo preto.
+            if not toques.has(evento.index):
+                return
             if toques.size() == 1 and toques.has(evento.index) and not teve_pinca and not dedo_moveu and inicio_toque.distance_to(evento.position) < 15.0:
                 _intervir(evento.position)
             toques.erase(evento.index)
             if toques.is_empty():
+                terra.call("finalizar_arrasto")
                 distancia_pinca = 0.0
                 teve_pinca = false
                 dedo_moveu = false
     elif evento is InputEventScreenDrag:
+        # Nao transforma um arrasto iniciado fora da Terra em um gesto valido.
+        if not toques.has(evento.index):
+            return
         toques[evento.index] = evento.position
         if toques.size() == 1 and not teve_pinca:
             if inicio_toque.distance_to(evento.position) >= 15.0:
@@ -96,6 +114,37 @@ func _distancia_dedos() -> float:
 func _aproximar(diferenca: float) -> void:
     distancia_camera = clampf(distancia_camera + diferenca, 4.6, 9.4)
     camera.position.z = distancia_camera
+
+func _esta_na_area_de_arrasto(posicao_tela: Vector2) -> bool:
+    # Area de pega mais confortavel: o globo e uma pequena faixa ao redor.
+    # Fora dessa faixa o fundo preto continua sem controlar a Terra.
+    if _esta_sobre_terra(posicao_tela):
+        return true
+
+    var centro: Vector3 = terra.global_position
+    var centro_tela: Vector2 = camera.unproject_position(centro)
+    var lateral: Vector3 = centro + camera.global_transform.basis.x.normalized() * 1.63
+    var raio_tela: float = centro_tela.distance_to(camera.unproject_position(lateral))
+    # A silhueta em perspectiva e um pouco maior que o raio projetado no centro.
+    # Margem de 18 a 32 pixels conforme a largura da janela/dispositivo.
+    var largura_tela: float = get_viewport().get_visible_rect().size.x
+    var margem: float = clampf(largura_tela * 0.04, 18.0, 32.0)
+    return posicao_tela.distance_to(centro_tela) <= raio_tela * 1.04 + margem
+
+func _esta_sobre_terra(posicao_tela: Vector2) -> bool:
+    # Verifica se o clique atravessa a esfera que representa o planeta.
+    # Usa o mesmo raio (1.63) do calculo de aplicacao das intervencoes.
+    var origem_global: Vector3 = camera.project_ray_origin(posicao_tela)
+    var direcao_global: Vector3 = camera.project_ray_normal(posicao_tela)
+    var origem: Vector3 = terra.to_local(origem_global)
+    var direcao: Vector3 = (terra.to_local(origem_global + direcao_global) - origem).normalized()
+    var b: float = 2.0 * origem.dot(direcao)
+    var c: float = origem.length_squared() - 1.63 * 1.63
+    var discriminante: float = b * b - 4.0 * c
+    if discriminante < 0.0:
+        return false
+    var distancia: float = (-b - sqrt(discriminante)) / 2.0
+    return distancia >= 0.0
 
 func _intervir(posicao_tela: Vector2) -> void:
     # Projeta o toque em uma esfera matematica; dispensa colisores e fisica pesada.
@@ -130,6 +179,10 @@ func _trocar_acao(nova_acao: String) -> void:
 func _avancar_ano() -> void:
     interface.call("mostrar_mensagem", simulacao.passar_ano())
     interface.call("mudar_estado", simulacao.estado())
+
+func _endireitar_globo() -> void:
+    terra.call("endireitar_globo")
+    interface.call("mostrar_mensagem", "Globo endireitado: norte para cima.")
 
 func _reiniciar() -> void:
     simulacao.reiniciar()

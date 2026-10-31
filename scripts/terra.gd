@@ -1,37 +1,100 @@
 extends Node3D
-## Globo 3D, nuvens independentes e marcadores luminosos das intervencoes.
+## Globo 3D, nuvens e marcadores.
+## Controle tipo globo: norte sempre para cima, com inclinacao vertical limitada.
 
 @onready var nuvens: MeshInstance3D = $Nuvens
+@onready var camera: Camera3D = $"../Camera3D"
+
+const LIMITE_INCLINACAO: float = 1.43117 # Aproximadamente 82 graus.
+const PESO_DO_ARRASTO: float = 0.69 # 15% mais sensivel que a versao anterior (0.60).
+
 var rotacao_automatica: bool = true
-var tempo: float = 0.0
-var velocidade_inercia: Vector2 = Vector2.ZERO
+var longitude: float = 0.0
+var inclinacao: float = 0.0
+var animacao_orientacao: Tween
 
 func _process(delta: float) -> void:
-    tempo += delta
+    # Rotacao lenta padrao, sem modificar a inclinacao do eixo.
     if rotacao_automatica:
-        rotate_y(delta * 0.014)
-    elif velocidade_inercia.length() > 0.015:
-        _aplicar_rotacao(velocidade_inercia * delta)
-        velocidade_inercia *= exp(-6.0 * delta)
+        longitude = wrapf(longitude + delta * 0.014, -PI, PI)
+        _aplicar_orientacao()
     nuvens.rotate_y(delta * 0.0035)
 
+func iniciar_arrasto() -> void:
+    # O usuario assume o controle imediatamente, inclusive durante o retorno ao norte.
+    parar_inercia()
+
+func finalizar_arrasto() -> void:
+    # Mantido para compatibilidade com principal.gd.
+    # Soltar o dedo ou mouse ja encerra o movimento naturalmente.
+    pass
+
 func girar(deslocamento: Vector2) -> void:
+    if deslocamento.length_squared() < 0.001:
+        return
     rotacao_automatica = false
-    var rotacao: Vector2 = deslocamento * 0.0045
-    _aplicar_rotacao(rotacao)
-    velocidade_inercia = (rotacao * 45.0).limit_length(3.0)
+    var movimento: Vector2 = deslocamento.limit_length(90.0)
+    var sensibilidade: float = _sensibilidade_do_globo() * PESO_DO_ARRASTO
+
+    # Arrasto continuo: exige maior deslocamento para o mesmo giro.
+    # Nao existe mais um teto de rotacao que congele o planeta no meio do gesto.
+    longitude = wrapf(longitude + movimento.x * sensibilidade, -PI, PI)
+    inclinacao = clampf(
+        inclinacao + movimento.y * sensibilidade,
+        -LIMITE_INCLINACAO,
+        LIMITE_INCLINACAO
+    )
+    _aplicar_orientacao()
+
+func _aplicar_orientacao() -> void:
+    # A inclinacao usa o eixo horizontal fixo da tela.
+    # A longitude gira dentro desse referencial, como em um globo fisico:
+    # isso impede que arrastos diagonais criem um movimento estranho nos polos.
+    # A ordem das multiplicacoes importa: primeiro a longitude, depois a inclinacao.
+    var giro_horizontal: Quaternion = Quaternion(Vector3.UP, longitude)
+    var giro_vertical: Quaternion = Quaternion(Vector3.RIGHT, inclinacao)
+    quaternion = (giro_vertical * giro_horizontal).normalized()
+
+func _sensibilidade_do_globo() -> float:
+    # Compensa o tamanho aparente do globo apos aproximar/afastar a camera.
+    var centro: Vector2 = camera.unproject_position(global_position)
+    var borda: Vector2 = camera.unproject_position(
+        global_position + camera.global_transform.basis.x.normalized() * 1.6
+    )
+    var raio_em_pixels: float = maxf(1.0, centro.distance_to(borda))
+    return clampf(1.0 / raio_em_pixels, 0.0015, 0.008)
 
 func parar_inercia() -> void:
-    velocidade_inercia = Vector2.ZERO
+    # Compatibilidade com principal.gd: cancela a animacao ao comecar a arrastar.
+    if animacao_orientacao != null and animacao_orientacao.is_valid():
+        animacao_orientacao.kill()
+        animacao_orientacao = null
 
-func _aplicar_rotacao(quantidade: Vector2) -> void:
-    rotation.y += quantidade.x
-    rotation.x = clampf(rotation.x + quantidade.y, -1.2, 1.2)
+func endireitar_globo() -> void:
+    # Corrige apenas a inclinacao. Nao apaga intervencoes nem muda a longitude.
+    finalizar_arrasto()
+    parar_inercia()
+    if absf(inclinacao) < 0.005:
+        inclinacao = 0.0
+        _aplicar_orientacao()
+        return
+    rotacao_automatica = false
+    animacao_orientacao = create_tween()
+    animacao_orientacao.set_trans(Tween.TRANS_CUBIC)
+    animacao_orientacao.set_ease(Tween.EASE_IN_OUT)
+    animacao_orientacao.tween_method(_definir_inclinacao, inclinacao, 0.0, 0.52)
+
+func _definir_inclinacao(valor: float) -> void:
+    inclinacao = valor
+    _aplicar_orientacao()
 
 func reiniciar_globo() -> void:
-    rotation = Vector3.ZERO
+    finalizar_arrasto()
+    parar_inercia()
+    longitude = 0.0
+    inclinacao = 0.0
     rotacao_automatica = true
-    velocidade_inercia = Vector2.ZERO
+    _aplicar_orientacao()
     for filho in get_children():
         if filho.name.begins_with("Marca_"):
             filho.queue_free()
