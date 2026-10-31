@@ -1,37 +1,52 @@
 extends Node3D
-## Globo 3D, nuvens independentes e marcadores luminosos das intervencoes.
+## Globo 3D, nuvens e marcadores.
+## Rotacao direta: a superficie acompanha o arrasto, sem inercia artificial.
 
 @onready var nuvens: MeshInstance3D = $Nuvens
+@onready var camera: Camera3D = $"../Camera3D"
+
 var rotacao_automatica: bool = true
-var tempo: float = 0.0
-var velocidade_inercia: Vector2 = Vector2.ZERO
 
 func _process(delta: float) -> void:
-    tempo += delta
     if rotacao_automatica:
         rotate_y(delta * 0.014)
-    elif velocidade_inercia.length() > 0.015:
-        _aplicar_rotacao(velocidade_inercia * delta)
-        velocidade_inercia *= exp(-6.0 * delta)
     nuvens.rotate_y(delta * 0.0035)
 
 func girar(deslocamento: Vector2) -> void:
+    # O objeto acompanha a mao enquanto houver movimento do mouse/dedo.
+    if deslocamento.length_squared() < 0.001:
+        return
+
     rotacao_automatica = false
-    var rotacao: Vector2 = deslocamento * 0.0045
-    _aplicar_rotacao(rotacao)
-    velocidade_inercia = (rotacao * 45.0).limit_length(3.0)
+    var movimento: Vector2 = deslocamento.limit_length(90.0)
+    var sensibilidade: float = _sensibilidade_do_globo()
+
+    # Eixos fixos da tela/camera, em vez de somar angulos Euler no objeto.
+    # Direita leva a superficie para a direita; baixo leva-a para baixo.
+    var eixo_para_cima: Vector3 = camera.global_transform.basis.y.normalized()
+    var eixo_para_direita: Vector3 = camera.global_transform.basis.x.normalized()
+    var giro_horizontal: Quaternion = Quaternion(eixo_para_cima, movimento.x * sensibilidade)
+    var giro_vertical: Quaternion = Quaternion(eixo_para_direita, movimento.y * sensibilidade)
+    quaternion = (giro_horizontal * giro_vertical * quaternion).normalized()
+
+func _sensibilidade_do_globo() -> float:
+    # Ajusta a velocidade do giro ao tamanho aparente da Terra.
+    # Assim, o arrasto tambem fica consistente apos usar o zoom.
+    var centro: Vector2 = camera.unproject_position(global_position)
+    var borda: Vector2 = camera.unproject_position(
+        global_position + camera.global_transform.basis.x.normalized() * 1.6
+    )
+    var raio_em_pixels: float = maxf(1.0, centro.distance_to(borda))
+    return clampf(1.0 / raio_em_pixels, 0.0015, 0.008)
 
 func parar_inercia() -> void:
-    velocidade_inercia = Vector2.ZERO
-
-func _aplicar_rotacao(quantidade: Vector2) -> void:
-    rotation.y += quantidade.x
-    rotation.x = clampf(rotation.x + quantidade.y, -1.2, 1.2)
+    # Mantido por compatibilidade com principal.gd.
+    # Nesta versao o movimento termina imediatamente ao soltar.
+    pass
 
 func reiniciar_globo() -> void:
-    rotation = Vector3.ZERO
+    quaternion = Quaternion.IDENTITY
     rotacao_automatica = true
-    velocidade_inercia = Vector2.ZERO
     for filho in get_children():
         if filho.name.begins_with("Marca_"):
             filho.queue_free()
