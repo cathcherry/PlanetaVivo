@@ -37,6 +37,10 @@ func _unhandled_input(evento: InputEvent) -> void:
             return
         if evento.button_index == MOUSE_BUTTON_LEFT:
             if evento.pressed:
+                # O arrasto so comeca quando o clique inicia no planeta.
+                # Clicar no fundo preto nao gira o globo.
+                if not _esta_sobre_terra(evento.position):
+                    return
                 arrastando = true
                 mouse_moveu = false
                 terra.call("iniciar_arrasto")
@@ -55,6 +59,10 @@ func _unhandled_input(evento: InputEvent) -> void:
         posicao_toque = evento.position
     elif evento is InputEventScreenTouch:
         if evento.pressed:
+            # O primeiro dedo precisa tocar a Terra.
+            # O segundo pode estar fora para permitir o gesto de pinca.
+            if toques.is_empty() and not _esta_sobre_terra(evento.position):
+                return
             toques[evento.index] = evento.position
             if toques.size() == 1:
                 teve_pinca = false
@@ -67,6 +75,9 @@ func _unhandled_input(evento: InputEvent) -> void:
                 teve_pinca = true
                 distancia_pinca = _distancia_dedos()
         else:
+            # Ignora dedos cujo gesto comecou no fundo preto.
+            if not toques.has(evento.index):
+                return
             if toques.size() == 1 and toques.has(evento.index) and not teve_pinca and not dedo_moveu and inicio_toque.distance_to(evento.position) < 15.0:
                 _intervir(evento.position)
             toques.erase(evento.index)
@@ -76,6 +87,9 @@ func _unhandled_input(evento: InputEvent) -> void:
                 teve_pinca = false
                 dedo_moveu = false
     elif evento is InputEventScreenDrag:
+        # Nao transforma um arrasto iniciado fora da Terra em um gesto valido.
+        if not toques.has(evento.index):
+            return
         toques[evento.index] = evento.position
         if toques.size() == 1 and not teve_pinca:
             if inicio_toque.distance_to(evento.position) >= 15.0:
@@ -100,6 +114,21 @@ func _distancia_dedos() -> float:
 func _aproximar(diferenca: float) -> void:
     distancia_camera = clampf(distancia_camera + diferenca, 4.6, 9.4)
     camera.position.z = distancia_camera
+
+func _esta_sobre_terra(posicao_tela: Vector2) -> bool:
+    # Verifica se o clique atravessa a esfera que representa o planeta.
+    # Usa o mesmo raio (1.63) do calculo de aplicacao das intervencoes.
+    var origem_global: Vector3 = camera.project_ray_origin(posicao_tela)
+    var direcao_global: Vector3 = camera.project_ray_normal(posicao_tela)
+    var origem: Vector3 = terra.to_local(origem_global)
+    var direcao: Vector3 = (terra.to_local(origem_global + direcao_global) - origem).normalized()
+    var b: float = 2.0 * origem.dot(direcao)
+    var c: float = origem.length_squared() - 1.63 * 1.63
+    var discriminante: float = b * b - 4.0 * c
+    if discriminante < 0.0:
+        return false
+    var distancia: float = (-b - sqrt(discriminante)) / 2.0
+    return distancia >= 0.0
 
 func _intervir(posicao_tela: Vector2) -> void:
     # Projeta o toque em uma esfera matematica; dispensa colisores e fisica pesada.
