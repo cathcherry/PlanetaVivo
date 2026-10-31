@@ -37,9 +37,9 @@ func _unhandled_input(evento: InputEvent) -> void:
             return
         if evento.button_index == MOUSE_BUTTON_LEFT:
             if evento.pressed:
-                # O arrasto so comeca quando o clique inicia no planeta.
-                # Clicar no fundo preto nao gira o globo.
-                if not _esta_sobre_terra(evento.position):
+                # O arrasto comeca na Terra ou bem perto da sua borda.
+                # O fundo preto distante continua sem controlar o globo.
+                if not _esta_na_area_de_arrasto(evento.position):
                     return
                 arrastando = true
                 mouse_moveu = false
@@ -59,9 +59,9 @@ func _unhandled_input(evento: InputEvent) -> void:
         posicao_toque = evento.position
     elif evento is InputEventScreenTouch:
         if evento.pressed:
-            # O primeiro dedo precisa tocar a Terra.
+            # O primeiro dedo precisa tocar a Terra ou sua borda ampliada.
             # O segundo pode estar fora para permitir o gesto de pinca.
-            if toques.is_empty() and not _esta_sobre_terra(evento.position):
+            if toques.is_empty() and not _esta_na_area_de_arrasto(evento.position):
                 return
             toques[evento.index] = evento.position
             if toques.size() == 1:
@@ -114,6 +114,22 @@ func _distancia_dedos() -> float:
 func _aproximar(diferenca: float) -> void:
     distancia_camera = clampf(distancia_camera + diferenca, 4.6, 9.4)
     camera.position.z = distancia_camera
+
+func _esta_na_area_de_arrasto(posicao_tela: Vector2) -> bool:
+    # Area de pega mais confortavel: o globo e uma pequena faixa ao redor.
+    # Fora dessa faixa o fundo preto continua sem controlar a Terra.
+    if _esta_sobre_terra(posicao_tela):
+        return true
+
+    var centro: Vector3 = terra.global_position
+    var centro_tela: Vector2 = camera.unproject_position(centro)
+    var lateral: Vector3 = centro + camera.global_transform.basis.x.normalized() * 1.63
+    var raio_tela: float = centro_tela.distance_to(camera.unproject_position(lateral))
+    # A silhueta em perspectiva e um pouco maior que o raio projetado no centro.
+    # Margem de 18 a 32 pixels conforme a largura da janela/dispositivo.
+    var largura_tela: float = get_viewport().get_visible_rect().size.x
+    var margem: float = clampf(largura_tela * 0.04, 18.0, 32.0)
+    return posicao_tela.distance_to(centro_tela) <= raio_tela * 1.04 + margem
 
 func _esta_sobre_terra(posicao_tela: Vector2) -> bool:
     # Verifica se o clique atravessa a esfera que representa o planeta.
