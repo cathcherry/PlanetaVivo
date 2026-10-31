@@ -4,6 +4,7 @@ extends CanvasLayer
 signal acao_selecionada(acao: String)
 signal ano_avancado
 signal jogo_reiniciado
+signal orientacao_restaurada
 
 const COR_FUNDO: Color = Color("09172cee")
 const COR_BORDA: Color = Color("34506b")
@@ -17,6 +18,7 @@ var rotulo_titulo: Label
 var rotulo_subtitulo: Label
 var texto_ano: Label
 var botao_menu: Button
+var botao_norte: Button
 var painel_noticia: Panel
 var texto_mensagem: Label
 var painel_controles: Panel
@@ -133,6 +135,15 @@ func _montar_interface() -> void:
     texto_mensagem.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     painel_noticia.add_child(texto_mensagem)
 
+    # Bússola de acesso rapido. Endireita o globo sem reiniciar o jogo.
+    botao_norte = _botao("N ↑", COR_DESTAQUE)
+    botao_norte.name = "BotaoNorteParaCima"
+    botao_norte.tooltip_text = "Norte para cima — manter a regiao atual"
+    botao_norte.custom_minimum_size = Vector2.ZERO
+    botao_norte.add_theme_font_size_override("font_size", 15)
+    botao_norte.pressed.connect(_endireitar_planeta)
+    raiz.add_child(botao_norte)
+
     painel_controles = Panel.new()
     painel_controles.name = "PainelDeControle"
     painel_controles.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -217,6 +228,9 @@ func _montar_interface() -> void:
     # Reiniciar fica somente no menu, nao no painel de jogo.
     _criar_menu()
     _ajustar_layout()
+
+func _endireitar_planeta() -> void:
+    orientacao_restaurada.emit()
 
 func _avancar_ano() -> void:
     ano_avancado.emit()
@@ -311,6 +325,10 @@ func _ajustar_layout() -> void:
     painel_noticia.size = Vector2(largura, 58.0)
     texto_mensagem.position = Vector2(12.0, 6.0)
     texto_mensagem.size = Vector2(largura - 24.0, 46.0)
+
+    # Pequeno controle flutuante ao lado do planeta, sem ocupar o cabecalho.
+    botao_norte.position = Vector2(tela.x - margem - 50.0, margem + altura_cabecalho + 80.0)
+    botao_norte.size = Vector2(50.0, 46.0)
 
     var altura_painel: float = clampf(tela.y * 0.395, 330.0, 465.0)
     painel_controles.position = Vector2(margem, tela.y - altura_painel - margem)
