@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://nul2y0sa3koo"
 path.s3tc="res://.godot/imported/terra.jpg-08e16adcb8d809bc26a8126f0de43d38.s3tc.ctex"
+path.etc2="res://.godot/imported/terra.jpg-08e16adcb8d809bc26a8126f0de43d38.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/terra.jpg"
-dest_files=["res://.godot/imported/terra.jpg-08e16adcb8d809bc26a8126f0de43d38.s3tc.ctex"]
+dest_files=["res://.godot/imported/terra.jpg-08e16adcb8d809bc26a8126f0de43d38.s3tc.ctex", "res://.godot/imported/terra.jpg-08e16adcb8d809bc26a8126f0de43d38.etc2.ctex"]
 
 [params]
 

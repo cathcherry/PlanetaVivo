@@ -37,6 +37,7 @@ pointing/emulate_mouse_from_touch=false
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
 environment/defaults/default_clear_color=Color(0.01, 0.02, 0.05, 1)
 anti_aliasing/quality/screen_space_aa=1

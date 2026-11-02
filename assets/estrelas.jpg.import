@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://biwy34s7i5y3a"
 path.s3tc="res://.godot/imported/estrelas.jpg-a0c6cb899974cbf2bd9a32ffb36f13b7.s3tc.ctex"
+path.etc2="res://.godot/imported/estrelas.jpg-a0c6cb899974cbf2bd9a32ffb36f13b7.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/estrelas.jpg"
-dest_files=["res://.godot/imported/estrelas.jpg-a0c6cb899974cbf2bd9a32ffb36f13b7.s3tc.ctex"]
+dest_files=["res://.godot/imported/estrelas.jpg-a0c6cb899974cbf2bd9a32ffb36f13b7.s3tc.ctex", "res://.godot/imported/estrelas.jpg-a0c6cb899974cbf2bd9a32ffb36f13b7.etc2.ctex"]
 
 [params]
 
