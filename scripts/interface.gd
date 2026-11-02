@@ -44,7 +44,7 @@ var botoes: Dictionary = {}
 var acao_atual: String = "meteoro"
 
 func _ready() -> void:
-    print("Planeta Vivo: MENU DE CONFIGURACOES v0.1.1 ATIVO")
+    print("Planeta Vivo: LAYOUT ANDROID v0.1.2 ATIVO")
     _montar_interface()
     get_viewport().size_changed.connect(_ajustar_layout)
     call_deferred("_ajustar_layout")
@@ -112,7 +112,7 @@ func _montar_interface() -> void:
 
     rotulo_titulo = _rotulo("PLANETA VIVO", 27, COR_TEXTO, true)
     cabecalho.add_child(rotulo_titulo)
-    rotulo_subtitulo = _rotulo("LABORATORIO PLANETARIO · PROTOTIPO 0.1.1", 11, COR_SUAVE)
+    rotulo_subtitulo = _rotulo("LABORATORIO PLANETARIO · PROTOTIPO 0.1.2", 11, COR_SUAVE)
     cabecalho.add_child(rotulo_subtitulo)
     texto_ano = _rotulo("2026", 20, COR_DESTAQUE, true)
     texto_ano.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -307,30 +307,40 @@ func _ajustar_layout() -> void:
         return
     raiz.position = Vector2.ZERO
     raiz.size = tela
-    var margem: float = clampf(tela.x * 0.025, 12.0, 24.0)
+    # Com stretch/aspect="expand", esta area corresponde a tela inteira do aparelho.
+    var margem: float = clampf(tela.x * 0.02, 10.0, 20.0)
     var largura: float = tela.x - margem * 2.0
-    var altura_cabecalho: float = 94.0
+
+    # Cabecalho e aviso compactos, proximos ao topo real do visor.
+    var altura_cabecalho: float = 86.0
     cabecalho.position = Vector2(margem, margem)
     cabecalho.size = Vector2(largura, altura_cabecalho)
-    rotulo_titulo.position = Vector2(14, 10)
+    rotulo_titulo.position = Vector2(14.0, 7.0)
     rotulo_titulo.size = Vector2(largura - 192.0, 38.0)
-    rotulo_subtitulo.position = Vector2(14, 52)
+    rotulo_subtitulo.position = Vector2(14.0, 47.0)
     rotulo_subtitulo.size = Vector2(largura - 180.0, 20.0)
-    texto_ano.position = Vector2(largura - 164.0, 17)
-    texto_ano.size = Vector2(74.0, 50.0)
-    botao_menu.position = Vector2(largura - 86.0, 21)
-    botao_menu.size = Vector2(74.0, 48.0)
+    texto_ano.position = Vector2(largura - 164.0, 15.0)
+    texto_ano.size = Vector2(74.0, 46.0)
+    botao_menu.position = Vector2(largura - 86.0, 18.0)
+    botao_menu.size = Vector2(74.0, 46.0)
 
-    painel_noticia.position = Vector2(margem, margem + altura_cabecalho + 10)
-    painel_noticia.size = Vector2(largura, 58.0)
-    texto_mensagem.position = Vector2(12.0, 6.0)
-    texto_mensagem.size = Vector2(largura - 24.0, 46.0)
+    painel_noticia.position = Vector2(margem, margem + altura_cabecalho + 8.0)
+    painel_noticia.size = Vector2(largura, 52.0)
+    texto_mensagem.position = Vector2(12.0, 5.0)
+    texto_mensagem.size = Vector2(largura - 24.0, 42.0)
 
-    # Pequeno controle flutuante ao lado do planeta, sem ocupar o cabecalho.
-    botao_norte.position = Vector2(tela.x - margem - 50.0, margem + altura_cabecalho + 80.0)
+    # Nao ocupa espaco de um painel: continua flutuando ao lado da Terra.
+    botao_norte.position = Vector2(tela.x - margem - 50.0, painel_noticia.position.y + 64.0)
     botao_norte.size = Vector2(50.0, 46.0)
 
-    var altura_painel: float = clampf(tela.y * 0.395, 330.0, 465.0)
+    # O painel agora abraca o conteudo (em vez de ocupar 39,5% da altura).
+    # Em telas pequenas, a rolagem continua disponivel sem cortar os botoes.
+    var altura_desejada: float = conteudo.get_combined_minimum_size().y + 28.0
+    var espaco_livre_globo: float = clampf(tela.y * 0.30, 210.0, 420.0)
+    var base_aviso: float = painel_noticia.position.y + painel_noticia.size.y
+    var altura_maxima: float = maxf(220.0, tela.y - base_aviso - espaco_livre_globo - margem * 2.0)
+    var altura_painel: float = minf(altura_desejada, altura_maxima)
+
     painel_controles.position = Vector2(margem, tela.y - altura_painel - margem)
     painel_controles.size = Vector2(largura, altura_painel)
     rolagem.position = Vector2(15.0, 14.0)
